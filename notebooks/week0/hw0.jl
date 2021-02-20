@@ -19,7 +19,7 @@ md"_Homework 0, version 3 -- Spring 2021_"
 # ╔═╡ 7308bc54-e6cd-11ea-0eab-83f7535edf25
 # edit the code below to set your name and kerberos ID (i.e. email without @mit.edu)
 
-student = (name = "Jazzy Doe", kerberos_id = "jazz")
+student = (name = "Igor Buryan", kerberos_id = "undefined")
 
 # press the ▶ button in the bottom right of this cell to run your edits
 # or use Shift+Enter
@@ -85,7 +85,7 @@ Output: $x^2$
 
 # ╔═╡ e02f7ea6-7024-11eb-3672-fd59a6cff79b
 function basic_square(x)
-	return 1 # this is wrong, write your code here!
+	return x * x
 end
 
 # ╔═╡ 6acef56c-7025-11eb-2524-819c30a75d39
@@ -172,8 +172,13 @@ md"### Exercise 1.2
 Write a function newton_sqrt(x) which implements the above algorithm."
 
 # ╔═╡ 4896bf0c-e754-11ea-19dc-1380bb356ab6
-function newton_sqrt(x, error_margin=0.01, a=x / 2) # a=x/2 is the default value of `a`
-	return x # this is wrong, write your code here!
+function newton_sqrt(x, error_margin=0.01, a=x / 2) # a=x/2 is the default value of `a`	
+	if abs(a - x/a) >= error_margin
+		a = (a + x/a) / 2
+		newton_sqrt(x, error_margin, a)
+	else
+		a
+	end
 end
 
 # ╔═╡ 7a01a508-e78a-11ea-11da-999d38785348
