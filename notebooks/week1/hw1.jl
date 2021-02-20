@@ -52,7 +52,7 @@ Feel free to ask questions!
 # ╔═╡ 911ccbce-ed68-11ea-3606-0384e7580d7c
 # edit the code below to set your name and kerberos ID (i.e. email without @mit.edu)
 
-student = (name = "Jazzy Doe", kerberos_id = "jazz")
+student = (name = "Igor B", kerberos_id = "undefined")
 
 # press the ▶ button in the bottom right of this cell to run your edits
 # or use Shift+Enter
@@ -84,6 +84,9 @@ A `Vector` is a 1D array. We can think of that as a 1D image.
 # ╔═╡ 467856dc-eded-11ea-0f83-13d939021ef3
 example_vector = [0.5, 0.4, 0.3, 0.2, 0.1, 0.0, 0.7, 0.0, 0.7, 0.9]
 
+# ╔═╡ ad5014c6-7371-11eb-3642-15851b4a5514
+
+
 # ╔═╡ ad6a33b0-eded-11ea-324c-cfabfd658b56
 md"""
 $(html"<br>")
@@ -92,7 +95,7 @@ $(html"<br>")
 """
 
 # ╔═╡ f51333a6-eded-11ea-34e6-bfbb3a69bcb0
-random_vect = missing # replace `missing` with your code!
+random_vect = [rand() for x=1:10]
 
 # ╔═╡ 5da8cbe8-eded-11ea-2e43-c5b7cc71e133
 begin
@@ -112,8 +115,11 @@ md"#### Exerise 1.2
 
 # ╔═╡ bd907ee1-5253-4cae-b5a5-267dac24362a
 function my_sum(xs)
-	# your code here!
-	return missing
+	sum = 0
+	for x in xs
+		sum += x
+	end
+	return sum
 end
 
 # ╔═╡ 6640110a-d171-4b32-8d12-26979a36b718
@@ -126,7 +132,7 @@ md"#### Exerise 1.3
 # ╔═╡ 0ffa8354-edee-11ea-2883-9d5bfea4a236
 function mean(xs)
 	# your code here!
-	return missing
+	return sum(xs) / size(xs, 1)
 end
 
 # ╔═╡ 1f104ce4-ee0e-11ea-2029-1d9c817175af
@@ -136,7 +142,7 @@ mean([1, 2, 3])
 md"👉 Define `m` to be the mean of `random_vect`."
 
 # ╔═╡ 2a391708-edee-11ea-124e-d14698171b68
-m = missing # replace `missing` with your code!
+m = mean(random_vect) # replace `missing` with your code!
 
 # ╔═╡ e2863d4c-edef-11ea-1d67-332ddca03cc4
 md"""#### Exerise 1.4
@@ -162,7 +168,8 @@ md"""
 # ╔═╡ ec5efe8c-edef-11ea-2c6f-afaaeb5bc50c
 function demean(xs)
 	# your code here!
-	return missing
+	m = mean(xs)
+	return [x - m for x=xs]
 end
 
 # ╔═╡ d6ddafdd-1a44-48c7-b49a-554073cdf331
@@ -203,7 +210,9 @@ md"""
 # ╔═╡ b6b65b94-edf0-11ea-3686-fbff0ff53d08
 function create_bar()
 	# your code here!
-	return missing
+	a = fill(0, 100)
+	a[40:60] .= 1
+	return a
 end
 
 # ╔═╡ 4a5e9d2c-dd90-4bb0-9e31-3f5c834406b4
@@ -271,7 +280,7 @@ md"""
 # ╔═╡ a8b2270a-600c-4f83-939e-dc5ab35f4735
 function get_red(pixel::AbstractRGB)
 	# your code here!
-	return missing
+	return pixel.r
 end
 
 # ╔═╡ c320b39d-4cea-4fa1-b1ce-053c898a67a6
@@ -286,7 +295,7 @@ md"""
 # ╔═╡ ebe1d05c-f6aa-437d-83cb-df0ba30f20bf
 function get_reds(image::AbstractMatrix)
 	# your code here!
-	return missing
+	return get_red.(image)
 end
 
 # ╔═╡ c427554a-6f6a-43f1-b03b-f83239887cee
@@ -322,7 +331,7 @@ Use the ➕ button at the bottom left of this cell to add more cells.
 """
 
 # ╔═╡ 21ba6e75-55a2-4614-9b5d-ea6378bf1d98
-
+value_as_color.(get_reds(philip_head))
 
 # ╔═╡ f7825c18-ff28-4e23-bf26-cc64f2f5049a
 md"""
@@ -332,7 +341,24 @@ md"""
 """
 
 # ╔═╡ d994e178-78fd-46ab-a1bc-a31485423cad
+function get_green(pixel::AbstractRGB)
+	return pixel.g
+end
 
+# ╔═╡ 2c153a46-7374-11eb-3230-e30bfebf4c7a
+function get_greens(image::AbstractMatrix)
+	return get_green.(image)
+end
+
+# ╔═╡ 43b9e35e-7374-11eb-3c05-9197ba05d66d
+function get_blue(pixel::AbstractRGB)
+	return pixel.b
+end
+
+# ╔═╡ 447be8aa-7374-11eb-1012-61b26edc73e6
+function get_blues(image::AbstractMatrix)
+	return get_blue.(image)
+end
 
 # ╔═╡ c54ccdea-ee05-11ea-0365-23aaf053b7d7
 md"""
@@ -343,7 +369,7 @@ md"""
 # ╔═╡ f6898df6-ee07-11ea-2838-fde9bc739c11
 function mean_color(image)
 	# your code here!
-	return missing
+	return RGB(mean(get_red.(image)), mean(get_green.(image)), mean(get_blue.(image)))
 end
 
 # ╔═╡ 5be9b144-ee0d-11ea-2a8d-8775de265a1d
@@ -357,7 +383,7 @@ _At the end of this homework, you can see all of your filters applied to your we
 # ╔═╡ 63e8d636-ee0b-11ea-173d-bd3327347d55
 function invert(color::AbstractRGB)
 	# your code here!
-	return missing
+	return RGB(1 - color.r, 1 - color.g, 1 - color.b)
 end
 
 # ╔═╡ 2cc2f84e-ee0d-11ea-373b-e7ad3204bb00
@@ -379,7 +405,7 @@ invert(color_red)
 md"👉 Can you invert the picture of Philip?"
 
 # ╔═╡ 943103e2-ee0b-11ea-33aa-75a8a1529931
-philip_inverted = missing # replace `missing` with your code!
+philip_inverted = invert.(philip) # replace `missing` with your code!
 
 # ╔═╡ 55b138b7-19fb-4da1-9eb1-1e8304528251
 md"""
@@ -395,7 +421,7 @@ md"""
 # ╔═╡ fbd1638d-8d7a-4d12-aff9-9c160cc3fd74
 function quantize(x::Number)
 	# your code here!
-	return missing
+	return floor(x, digits=1)
 end
 
 # ╔═╡ 7720740e-2d2b-47f7-98fd-500ed3eee479
@@ -450,7 +476,7 @@ The method you write should return a new `RGB` object, in which each component (
 # ╔═╡ 04e6b486-ceb7-45fe-a6ca-733703f16357
 function quantize(color::AbstractRGB)
 	# your code here!
-	return missing
+	return RGB(quantize(color.r), quantize(color.g), quantize(color.b))
 end
 
 # ╔═╡ f6bf64da-ee07-11ea-3efb-05af01b14f67
@@ -462,7 +488,7 @@ md"""
 # ╔═╡ 13e9ec8d-f615-4833-b1cf-0153010ccb65
 function quantize(image::AbstractMatrix)
 	# your code here!
-	return missing
+	return quantize.(image)
 end
 
 # ╔═╡ f6a655f8-ee07-11ea-13b6-43ca404ddfc7
@@ -483,7 +509,7 @@ md"""
 # ╔═╡ f38b198d-39cf-456f-a841-1ba08f206010
 function noisify(x::Number, s)
 	# your code here!
-	return missing
+	return clamp(x + rand(range(-s,s,step=0.01)), 0, 1)
 end
 
 # ╔═╡ f6fc1312-ee07-11ea-39a0-299b67aee3d8
@@ -496,7 +522,7 @@ Use your previous method for `noisify`. _(Remember that Julia chooses which meth
 # ╔═╡ db4bad9f-df1c-4640-bb34-dd2fe9bdce18
 function noisify(color::AbstractRGB, s)
 	# your code here!
-	return missing
+	return RGB(noisify(color.r, s), noisify(color.g, s), noisify(color.b, s))
 end
 
 # ╔═╡ 0000b7f8-4c43-4dd8-8665-0dfe59e74c0a
@@ -530,7 +556,7 @@ md"""
 # ╔═╡ 21a5885d-00ab-428b-96c3-c28c98c4ca6d
 function noisify(image::AbstractMatrix, s)
 	# your code here!
-	return missing
+	return noisify.(image, s)
 end
 
 # ╔═╡ 1ea53f41-b791-40e2-a0f8-04e13d856829
@@ -555,7 +581,7 @@ Move the slider below to set the amount of noise applied to the image of Philip.
 """
 
 # ╔═╡ e70a84d4-ee0c-11ea-0640-bf78653ba102
-@bind philip_noise Slider(0:0.01:1, show_value=true)
+@bind philip_noise Slider(0:0.01:5, show_value=true)
 
 # ╔═╡ ac15e0d0-ee0c-11ea-1eaf-d7f88b5df1d7
 noisify(philip_head, philip_noise)
@@ -581,7 +607,7 @@ You may need noise intensities larger than 1. Why?
 
 # ╔═╡ bdc2df7c-ee0c-11ea-2e9f-7d2c085617c1
 answer_about_noise_intensity = md"""
-The image is unrecognisable with intensity ...
+The image is unrecognisable with intensity > 2.2
 """
 
 # ╔═╡ e87e0d14-43a5-490d-84d9-b14ece472061
@@ -592,9 +618,15 @@ md"""
 # ╔═╡ ee5f21fb-1076-42b6-8926-8bbb6ed0ad67
 function custom_filter(pixel::AbstractRGB)
 	
-	# your code here!
+	# if pixel.r + pixel.g + pixel.b > 1.2
+	# 	return RGB(1,1,1)
+	# else
+	# 	return RGB(0,0,0)
+	# end
+	gray = (pixel.r * 0.299) + (pixel.g * 0.587) + (pixel.b * 0.114)
+	return RGB(gray, gray, gray)
 	
-	return pixel
+	# return pixel
 end
 
 # ╔═╡ 9e5a08dd-332a-486b-94ab-15c49e72e522
@@ -1281,6 +1313,7 @@ md"_homework 1, version 7_"
 # ╟─540ccfcc-ee0a-11ea-15dc-4f8120063397
 # ╟─467856dc-eded-11ea-0f83-13d939021ef3
 # ╠═56ced344-eded-11ea-3e81-3936e9ad5777
+# ╠═ad5014c6-7371-11eb-3642-15851b4a5514
 # ╟─ad6a33b0-eded-11ea-324c-cfabfd658b56
 # ╠═f51333a6-eded-11ea-34e6-bfbb3a69bcb0
 # ╟─b18e2c54-edf1-11ea-0cbf-85946d64b6a2
@@ -1344,6 +1377,9 @@ md"_homework 1, version 7_"
 # ╠═21ba6e75-55a2-4614-9b5d-ea6378bf1d98
 # ╟─f7825c18-ff28-4e23-bf26-cc64f2f5049a
 # ╠═d994e178-78fd-46ab-a1bc-a31485423cad
+# ╠═2c153a46-7374-11eb-3230-e30bfebf4c7a
+# ╠═43b9e35e-7374-11eb-3c05-9197ba05d66d
+# ╠═447be8aa-7374-11eb-1012-61b26edc73e6
 # ╟─c54ccdea-ee05-11ea-0365-23aaf053b7d7
 # ╠═f6898df6-ee07-11ea-2838-fde9bc739c11
 # ╠═5be9b144-ee0d-11ea-2a8d-8775de265a1d
