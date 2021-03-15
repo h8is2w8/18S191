@@ -374,12 +374,17 @@ let
 end
 
 # ╔═╡ 28e20950-ee0c-11ea-0e0a-b5f2e570b56e
-function convolve(v::AbstractVector, k)	
+function convolve_v1(v::AbstractVector, k)	
 	l = (size(k, 1) - 1) ÷ 2
 	[sum([extend(v, i+j) * k[l+j+1] for j=-l:l]) for i=1:size(v, 1)]
 end
 
-# TODO: implement colvolve with centred matrix
+# ╔═╡ dcdeaaae-83eb-11eb-3968-1f540cd6644f
+function convolve(v::AbstractVector, k)	
+	l = (size(k, 1) - 1) ÷ 2
+	offset_k = OffsetArray(k, -l:l)
+	[sum([extend(v, i+j) * offset_k[j] for j=-l:l]) for i=1:size(v, 1)]
+end
 
 # ╔═╡ 9afc4dca-ee16-11ea-354f-1d827aaa61d2
 md"_Let's test it!_"
@@ -435,9 +440,11 @@ md"""
 # ╔═╡ 8b96e0bc-ee15-11ea-11cd-cfecea7075a0
 function convolve(M::AbstractMatrix, K::AbstractMatrix)
 	num_rows, num_columns = size(K)
-	l = (num_rows - 1) ÷ 2
+	cc = (num_columns - 1) ÷ 2
+	rc = (num_rows - 1) ÷ 2
+	offset_K = OffsetArray(K, -rc:rc, -cc:cc)
 	
-	[sum([extend(M, x+m, y+n) * K[l+m+1, l+n+1] for m=-l:l, n=-l:l])
+	[sum([extend(M, x+r, y+c) * offset_K[r, c] for r=-rc:rc, c=-cc:cc])
 		for x=1:size(M,1), y=1:size(M,2)]		
 end
 
@@ -609,6 +616,9 @@ function with_sobel_edge_detect(image)
 	
 	return Gray.(sqrt.(im1.^2 + im2.^2)) 
 end
+
+# ╔═╡ 3251a162-83ee-11eb-33d7-3de001402df0
+with_sobel_edge_detect(Gray.(philip_head))
 
 # ╔═╡ 8ffe16ce-ee20-11ea-18bd-15640f94b839
 if student.kerberos_id === "jazz"
@@ -1104,6 +1114,7 @@ Gray.(with_sobel_edge_detect(sobel_camera_image))
 # ╟─ea435e58-ee11-11ea-3785-01af8dd72360
 # ╟─80ab64f4-ee09-11ea-29b4-498112ed0799
 # ╠═28e20950-ee0c-11ea-0e0a-b5f2e570b56e
+# ╠═dcdeaaae-83eb-11eb-3968-1f540cd6644f
 # ╟─32a07f1d-93cd-4bf3-bac1-91afa6bb88a6
 # ╟─5eea882c-ee13-11ea-0d56-af81ecd30a4a
 # ╠═93284f92-ee12-11ea-0342-833b1a30625c
@@ -1176,6 +1187,7 @@ Gray.(with_sobel_edge_detect(sobel_camera_image))
 # ╟─f461f5f2-ee18-11ea-3d03-95f57f9bf09e
 # ╟─7c6642a6-ee15-11ea-0526-a1aac4286cdd
 # ╠═9eeb876c-ee15-11ea-1794-d3ea79f47b75
+# ╠═3251a162-83ee-11eb-33d7-3de001402df0
 # ╠═1a0324de-ee19-11ea-1d4d-db37f4136ad3
 # ╠═1bf94c00-ee19-11ea-0e3c-e12bc68d8e28
 # ╟─1ff6b5cc-ee19-11ea-2ca8-7f00c204f587
