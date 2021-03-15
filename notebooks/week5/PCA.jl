@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.14.0
+# v0.12.21
 
 using Markdown
 using InteractiveUtils
@@ -18,33 +18,24 @@ begin
 	import Pkg
 	Pkg.activate(mktempdir())
 	Pkg.add([
-		# Image packages
-		Pkg.PackageSpec(name="ImageIO", version="0.5"),
-		Pkg.PackageSpec(name="ImageShow", version="0.2"),
-		Pkg.PackageSpec(name="FileIO", version="1.6"),
-		Pkg.PackageSpec(name="PNGFiles", version="0.3.6"),
-		Pkg.PackageSpec(name="Colors", version="0.12"),
-		Pkg.PackageSpec(name="ColorVectorSpace", version="0.8"),
-		Pkg.PackageSpec(name="ColorSchemes", version="3.10"),
-		
-		Pkg.PackageSpec(name="PlutoUI", version="0.7"), 
-		Pkg.PackageSpec(name="Plots", version="1.10"), 
-		Pkg.PackageSpec(name="ForwardDiff", version="0.10"),
-	])
+			Pkg.PackageSpec(name="Images", version="0.22.4"), 
+			Pkg.PackageSpec(name="ImageMagick", version="0.7"), 
+			Pkg.PackageSpec(name="PlutoUI", version="0.7"), 
+			Pkg.PackageSpec(name="Plots", version="1.10"), 
+			Pkg.PackageSpec(name="Colors", version="0.12"),
+			Pkg.PackageSpec(name="ColorSchemes", version="3.10"),
+			Pkg.PackageSpec(name="ForwardDiff"),
+			Pkg.PackageSpec(name="LaTeXStrings"),
+
+			])
 
 	using PlutoUI
-	using Colors, ColorVectorSpace, ImageShow, FileIO
-	using ColorSchemes
+	using Colors, ColorSchemes, Images
 	using Plots
+	using LaTeXStrings
 	
-	using ForwardDiff
 	using Statistics, LinearAlgebra  # standard libraries
 end
-
-# ╔═╡ 01aad939-49da-466e-9eeb-1e68766d86fd
-filter!(LOAD_PATH) do path
-	path != "@v#.#"
-end;
 
 # ╔═╡ 4c1ebac8-81b7-11eb-19fa-f704b4d84a21
 html"""
@@ -76,7 +67,7 @@ font-feature-settings: 'lnum', 'pnum';
 "> <p style="
 font-size: 1.5rem;
 opacity: .8;
-"><em>Chapter 9.2</em></p>
+"><em>Chapter 10</em></p>
 <p style="text-align: center; font-size: 2rem;">
 <em>Structure in data: Principal Component Analysis</em>
 </p>
@@ -92,30 +83,27 @@ overflow-x: hidden;
 # ╔═╡ c593a748-81b6-11eb-295a-a9800f9dec6d
 PlutoUI.TableOfContents(aside=true)
 
-# ╔═╡ 4fea55cc-0f0c-4b8a-8734-59c879c12065
+# ╔═╡ deb2af50-8524-11eb-0dd4-9d799ff6d3e2
 md"""
-#### Intializing packages
+# Introduction: Understanding data
 
-_When running this notebook for the first time, this could take up to 15 minutes. Hang in there!_
+In this notebook we will start looking at more general kinds of **data**, not only images, and we'll try to extract some information from the image using statistical methods, namely [**principal component analysis**](https://en.wikipedia.org/wiki/Principal_component_analysis).  
+
+This method tries to answer the questions "which 'directions' are the most important  in the data" and "can we [reduce the dimensionality](https://en.wikipedia.org/wiki/Dimensionality_reduction) (number of useful variables) of the data"? 
+
+This can be viewed as another take on the question of finding and exploiting **structure** in data. It also leads towards ideas of **machine learning**.
 """
 
-# ╔═╡ 817552ca-81b7-11eb-1da7-116b0b35dc42
+# ╔═╡ 2e50a070-853f-11eb-2045-b1cc43c29768
 md"""
-# Understanding data
-"""
-
-# ╔═╡ 7365084a-1f37-4897-bca4-fc5855c5ee4e
-md"""
-In this lecture we will look at some ways to analyse, understand and simplify data. We will look at the ideas and intuition behind **principal component analysis**, a technique to find the most important directions and dimensions in a data set. This is one way to find and exploit **structure** in data.
-
-Then we will generalise to the situation in which we have some unknown data that we would like to *predict*, giving rise to a simple example of **machine learning**.
+# Rank of a matrix
 """
 
 # ╔═╡ ed7ff6b2-f863-11ea-1a59-eb242a8674e3
 md"## Flags"
 
 # ╔═╡ fed5845e-f863-11ea-2f95-c331d3c62647
-md"Let's start off by thinking about a **multiplication table**, also called an **outer product**:"
+md"Let's start off by recalling ideas about  **multiplication tables** or **outer products**:"
 
 # ╔═╡ 0e1a6d80-f864-11ea-074a-5f7890180114
 outer(v, w) = [x * y for x in v, y in w]
@@ -148,7 +136,7 @@ Note that outer products are not always immediate to recognise just by looking a
 """
 
 # ╔═╡ cdbe1d8e-f905-11ea-3884-efeeef386dda
-md"## Rank of a matrix"
+md"## Matrix rank"
 
 # ╔═╡ d9aa9af0-f865-11ea-379e-f16b452bd94c
 md"""
@@ -159,7 +147,7 @@ If a matrix can be written exactly as a *single* multiplication table / outer pr
 md"Let's see what a random rank-1 matrix looks like:"
 
 # ╔═╡ 9ad13804-815c-11eb-0253-8f8baf15eee3
-w = 200
+w = 300
 
 # ╔═╡ 38adc490-f867-11ea-1de5-3b633aff7c97
 image = outer([1; 0.4; rand(50)], rand(w));
@@ -238,21 +226,26 @@ gr()
 
 # ╔═╡ 1147cbda-f867-11ea-08fa-ef6ed2ae1e93
 begin
-	scatter(xx, yy, 
+	xs = noisy_image[1, :]
+	ys = noisy_image[2, :]
+	
+	scatter(xs, ys, label="noisy", m=:., alpha=0.3, ms=4, ratio=1)
+
+	scatter!(xx, yy, 
 			leg=:topleft, label="rank-1", ms=3, alpha=0.3, 
 			size=(500, 400), m=:square, c=:red,
 			framestyle=:origin)
 
-	xs = noisy_image[1, :]
-	ys = noisy_image[2, :]
 	
-	scatter!(xs, ys, label="noisy", m=:., alpha=0.3, c=:blue)
+	
 	
 	title!("Plotting a rank-1 matrix gives a straight line!")
 end
 
 # ╔═╡ 8a611e36-f867-11ea-121f-317b7c145fe3
-md"We see that the exact rank-1 matrix has columns that **lie along a line** in this representation, since they are just multiples of one another.
+md"We see that the exact rank-1 matrix has columns that **lie along a line** through the origin in this representation, since they are just multiples of one another.
+
+E.g. If $(x_1, y_1)$ and $(x_2, y_2)$ are two columns with $x_2 = cx_1$ and $y_2 = cy_1$, then $y_2 / x_2 = y_1 / x_1$, so they lie along the same line through the origin.
 
 The approximate rank-1 matrix has columns that **lie *close to* the line**!"
 
@@ -260,12 +253,6 @@ The approximate rank-1 matrix has columns that **lie *close to* the line**!"
 md"So, given the data, we want to look at it do see if it lies close to a line or not.
 How can we do so in an *automatic* way?
 "
-
-# ╔═╡ 119dc35c-ec94-11ea-190c-23a750fbe7f4
-md"The data are given by pairs $(x_i, y_i)$. We can highlight the $i$th data point in the set to see how the data are spread out. Remember that this is literally scanning through the columns of the image!"
-
-# ╔═╡ 2043d4e6-ec94-11ea-1e1a-c75742eafe71
-@bind i Slider(1:length(xs), show_value=true)
 
 # ╔═╡ 987c1f2e-f868-11ea-1125-0d8c02843ae4
 md"""
@@ -277,8 +264,16 @@ md"Looking at this cloud of data points, a natural thing to do is to try to *mea
 
 # ╔═╡ 24df1f32-ec90-11ea-1f6d-03c1bfa5df8e
 md"""For example, let's think about calculating the width of the cloud, i.e. the range of possible $x$-values of the data. For this purpose the $y$-values are actually irrelevant.
+"""
 
-A first step in analysing data is often to **centre** it data around 0 by subtracting the mean. This is sometimes called "de-meaning":
+# ╔═╡ b264f724-81bf-11eb-1052-295b81cde5fb
+md"""
+A natural idea would be to just scan the data and take the maximum and minimum values. However, real data often contains anomalously large values called **outliers**, which would dramatically affect this calculation. Instead we need to use a **statistical** method where we weight the data and average over all the data points. This process will hopefully be affected less by outliers, and will give a more representative idea of the size of the **bulk** of the data.
+"""
+
+# ╔═╡ 09991230-8526-11eb-04aa-fb904bd2036c
+md"""
+A first step in analysing data is often to **centre** it data around 0 by subtracting the mean, sometimes called "de-meaning":
 """
 
 # ╔═╡ aec46a9b-f743-4cbd-97a7-3ef3cac78b12
@@ -290,13 +285,17 @@ end
 # ╔═╡ 1b8c743e-ec90-11ea-10aa-e3b94f768f82
 scatter(xs_centered, ys_centered, ms=5, alpha=0.5, ratio=1, leg=false, framestyle=:origin)
 
-# ╔═╡ ef4a2a54-81bf-11eb-358b-0da2072f20c8
+# ╔═╡ eb867f18-852e-11eb-005f-e15b6d0d0d95
 md"""
-### Root-mean-square distance: Standard deviation
+## Measuring a "width" of a data set
 """
 
-# ╔═╡ f5358ce4-f86a-11ea-2989-b1f37be89183
-md"A common way (but not the only way!) to calculate the width of a data set is the **standard deviation**, i.e. the **root-mean-square** distance of the centered data from the origin. We will do this *separately* for $x$ and $y$ by *projecting* onto that direction -- i.e. effectively ignoring the other coordinate:"
+# ╔═╡ f7079016-852e-11eb-3bc9-53fa0846276f
+md"""
+A natural way to measure the width of a data set could be to measure some kind of width *separately* in both the $x$ and $y$ directions, in other words by **projecting** the data onto one of the axes, while ignoring the other one. Let's start with the $x$ coordinates of the centred data and try to average them.
+	
+If we literally average them we will get $0$ (since we have subtracted the mean). We could ask "on average how far away from the origin is the data". This would give the [mean absolute deviation](https://en.wikipedia.org/wiki/Average_absolute_deviation):
+"""
 
 # ╔═╡ 870d3efa-f8fc-11ea-1593-1552511dcf86
 begin
@@ -312,19 +311,34 @@ begin
 	
 end
 
-# ╔═╡ b264f724-81bf-11eb-1052-295b81cde5fb
+# ╔═╡ 4fb82f18-852f-11eb-278d-cf93571f4adc
+mean(abs.(xs_centered))
+
+# ╔═╡ 5fcf832c-852f-11eb-1354-792933a891a5
 md"""
-You might think it would be more natural to just take the maximum and minimum, instead of calculating the more complicated standard deviation. However, real data often contains **outliers**, i.e. values that are anomalously large. This method mitigates that effect.
+This is a perfectly good computational measure of distance. However, there is another measure which is easier to reason about theoretically / analytically:
 """
 
-# ╔═╡ 03ab44c0-f8fd-11ea-2243-1f3580f98a65
-md"This gives the following approximate extents (standard deviations) of the cloud:"
+# ╔═╡ ef4a2a54-81bf-11eb-358b-0da2072f20c8
+md"""
+### Root-mean-square distance: Standard deviation
+"""
+
+# ╔═╡ f5358ce4-f86a-11ea-2989-b1f37be89183
+md"""
+The **standard deviation** is the **root-mean-square** distance of the centered data from the origin. 
+
+In other words, we first *square* the distances (or displacements) from the origin, then take the mean of those, giving the **variance**. However, since we have squared the original distances, this gives a quantity with units "distance$^2$", so we need to take the square root to get back to a measurable length:
+"""
 
 # ╔═╡ 2c3721da-f86b-11ea-36cf-3fe4c6622dc6
 begin 
-	σ_x = sqrt(mean(xs_centered.^2))   # root-mean-square distance from 0
-	σ_y = sqrt(mean(ys_centered.^2))
+	σ_x = √(mean(xs_centered.^2))   # root-mean-square distance from 0
+	σ_y = √(mean(ys_centered.^2))
 end
+
+# ╔═╡ 03ab44c0-f8fd-11ea-2243-1f3580f98a65
+md"This gives the following approximate extents (standard deviations) of the cloud:"
 
 # ╔═╡ 6dec0db8-ec93-11ea-24ad-e17870ee64c2
 begin
@@ -332,13 +346,19 @@ begin
 			framestyle=:origin)
 
 	vline!([-2*σ_x, 2*σ_x], ls=:dash, lw=2, c=:green)
-	hline!([-2*σ_y, 2*σ_y], ls=:dash, lw=2, c=:green)
+	hline!([-2*σ_y, 2*σ_y], ls=:dash, lw=2, c=:blue)
+	
+	annotate!( 2σ_x * 0.93, 0.03, text(L"2\sigma_x",  14, :green))
+	annotate!(-2σ_x * 0.88, 0.03, text(L"-2\sigma_x", 14, :green))
+	
+	annotate!(0.05,  2σ_y * 1.13, text(L"2\sigma_y",  14, :blue))
+	annotate!(0.06, -2σ_y * 1.14, text(L"-2\sigma_y", 14, :blue))
 
 end
 
 # ╔═╡ 5fab2c32-f86b-11ea-2f27-ed5feaac1fa5
 md"""
-We normally expect most (around 95%) of the data to be contained within the interval $\mu \pm 2 \sigma$, where $\mu$ is the mean and $\sigma$ is the standard deviation.
+We expect most (around 95%) of the data to be contained within the interval $\mu \pm 2 \sigma$, where $\mu$ is the mean and $\sigma$ is the standard deviation. (This assumes that the data is **normally distributed**, which is not actually the case for the data generated above.)
 """
 
 # ╔═╡ ae9a2900-ec93-11ea-1ae5-0748221328fc
@@ -350,13 +370,13 @@ However, from the figure it is clear that $x$ and $y$ are not the "correct direc
 
 We need to find *from the data* which directions these are, and the extent (width) of the data cloud in those directions.
 
-It should be clear that we *cannot* obtain any information about those directions by looking *separately* at $x$-coordinates and $y$-coordinates, since within those same bounding boxes that we just calculated the data can be oriented in many different ways.
+However, we cannot obtain any information about those directions by looking *separately* at $x$-coordinates and $y$-coordinates, since within the same bounding boxes that we just calculated the data can be distributed in many different ways.
 
-Rather, the information that we need is encoded in the *relationship* between the values of $x_i$ and $y_i$ for the points in the data set.
+Rather, the information that we need is encoded in the *relationship* between the values of $x_i$ and $y_i$ *for the points in the data set*.
 
-*For points within our data set*, when $x$ is large and negative, $y$ is also rather negative; when $x$ is 0, $y$ is near $0$, and when $x$ is large and positive, so is $y$. We say that $x$ and $y$ are **correlated** -- literally they are mutually ("co") related, such that knowing some information about one of them allows us to predict something about the other. 
+For our data set, when $x$ is large and negative, $y$ is also rather negative; when $x$ is 0, $y$ is near $0$, and when $x$ is large and positive, so is $y$. We say that $x$ and $y$ are **correlated** -- literally they are mutually ("co") related, such that knowing some information about one of them allows us to predict something about the other. 
 
-For example, if I measure a new data point from the same process and I find that $x$ is around $0.25$ then I would expect $y$ to be within the range $0.05$ to $0.2$.
+For example, if I measure a new data point from the same process and I find that $x$ is around $0.25$ then I would expect $y$ to be within the range $0.05$ to $0.2$, and it would be very surprising if $y$ were -0.5.
 
 """
 
@@ -373,19 +393,28 @@ Effectively we are *changing coordinates* to a new coordinate, oriented along th
 """
 
 # ╔═╡ 3547f296-f86f-11ea-1698-53d3c1a0bc30
-md"## Rotating the data"
+md"## Rotating the axes"
 
 # ╔═╡ 7a83101e-f871-11ea-1d87-4946162777b5
-md"""By rotating the data we can look in different directions and calculate the width of the data set "along that direction". Again, we are really **projecting** the data onto that direction."""
+md"""By rotating the axes we can "look in different directions" and calculate the width of the data set "along that direction". What we are really doing is a perpendicular **projection** of the data onto that direction."""
 
 # ╔═╡ e8276b4e-f86f-11ea-38be-218a72452b10
 M = [xs_centered ys_centered]'
+
+# ╔═╡ 1f373bd0-853f-11eb-0f8e-19cb7f376182
+eigvals(cov(M')) .* 199
 
 # ╔═╡ d71fdaea-f86f-11ea-1a1f-45e4d50926d3
 imax = argmax(M[1, :])
 
 # ╔═╡ 757c6808-f8fe-11ea-39bb-47e4da65113a
 svdvals(M)
+
+# ╔═╡ 1232e848-8540-11eb-089b-2185cc06f23a
+M
+
+# ╔═╡ 7cb04c9a-8358-11eb-1255-8d8c90916c37
+gr()
 
 # ╔═╡ cd9e05ee-f86f-11ea-0422-25f8329c7ef2
 R(θ)= [cos(θ) sin(θ)
@@ -395,7 +424,17 @@ R(θ)= [cos(θ) sin(θ)
 md"In the following figure, we are rotating the axis (red arrow) around in the left panel. In the right panel we are viewing the data from the point of view of that new coordinate direction, in other words projecting onto that direction, effectively as if we rotated our head so the red vector was horizontal:"
 
 # ╔═╡ 4f1980ea-f86f-11ea-3df2-35cca6c961f3
-@bind θ Slider(0:0.01:2π, show_value=true, default=0.38)
+md"""
+degrees = $(@bind degrees Slider(0:360, default=28, show_value=true)) 
+"""
+
+# ╔═╡ c9da6e64-8540-11eb-3984-47fdf8be0dac
+md"""
+## Rotating the data
+"""
+
+# ╔═╡ f70065aa-835a-11eb-00cb-ffa27bcb486e
+θ = π * degrees / 180   # radians
 
 # ╔═╡ 3b71142c-f86f-11ea-0d43-47011d00786c
 p1 = begin
@@ -403,43 +442,76 @@ p1 = begin
 	scatter(M[1, :], M[2, :], ratio=1, leg=false, ms=2.5, alpha=0.5,
 			framestyle=:origin)
 	
-	plot!([0.7 .* (-cos(θ), -sin(θ)), 0.7 .* (cos(θ), sin(θ))], lw=2, arrow=true, c=:red, alpha=0.8)
+	projected = ([cos(θ) sin(θ)] * M) .* [cos(θ) sin(θ)]'
+	scatter!(projected[1, :], projected[2, :], m=:3, alpha=0.1, c=:green)
+	
+	
+	lines_x = reduce(vcat, [M[1, i], projected[1, i], NaN] for i in 1:size(M, 2))
+	lines_y = reduce(vcat, [M[2, i], projected[2, i], NaN] for i in 1:size(M, 2))
+	
+	
+# 	for i in 1:size(M, 2)
+# 		plot!([M[1, i], projected[1, i]], [M[2, i], projected[2, i]], ls=:dash, c=:black, alpha=0.1)
+# 	end
+	
+	plot!(lines_x, lines_y, ls=:dash, c=:black, alpha=0.1)
+	
+	
+	plot!([0.7 .* (-cos(θ), -sin(θ)), 0.7 .* (cos(θ), sin(θ))], lw=1, arrow=true, c=:red, alpha=0.3)
 	xlims!(-0.7, 0.7)
 	ylims!(-0.7, 0.7)
 	
-	scatter!([M[1, imax]], [M[2, imax]],  ms=5, alpha=1, c=:yellow)
+	scatter!([M[1, imax]], [M[2, imax]],  ms=3, alpha=1, c=:yellow)
 
 	annotate!(0, 1.2, text("align arrow with cloud", :red, 10))
 end;
+
+# ╔═╡ 8b8e6b2e-8531-11eb-1ea6-637db25b28d5
+p1
 
 # ╔═╡ 88bbe1bc-f86f-11ea-3b6b-29175ddbea04
 p2 = begin
 	M2 = R(θ) * M
 	
-	scatter(M2[1, :], M2[2, :],ratio=1, leg=false, ms=2.5, alpha=0.3, framestyle=:origin)
+	scatter(M2[1, :], M2[2, :],ratio=1, leg=false, ms=2.5, alpha=0.3, framestyle=:origin, size=(500, 500))
 	
-	plot!([(-0.6, 0), (0.6, 0)], lw=3, arrow=true, c=:red, xaxis=false, yaxis=false, xticks=[], yticks=[])
+	#plot!([(-0.6, 0), (0.6, 0)], lw=3, arrow=true, c=:red, xaxis=false, yaxis=false, xticks=[], yticks=[])
 	
-	scatter!([M2[1, imax]], [M2[2, imax]], ms=5, alpha=1, c=:yellow)
+	#scatter!([M2[1, imax]], [M2[2, imax]], ms=3, alpha=1, c=:yellow)
 
 	xlims!(-0.7, 0.7)
 	ylims!(-0.7, 0.7)
 	
-	scatter!(M2[1, :], zeros(size(xs_centered)), ms=5, alpha=0.1, ratio=1, leg=false, framestyle=:origin)
+	scatter!(M2[1, :], zeros(size(xs_centered)), ms=3, alpha=0.1, ratio=1, leg=false, framestyle=:origin, c=:green)
 
-	for i in 1:size(M2, 2)
-		plot!([(M2[1, i], M2[2, i]), (M2[1, i], 0)], ls=:dash, c=:black, alpha=0.1)
-	end
+	
+	lines2_x = reduce(vcat, [M2[1, i], M2[1, i], NaN] for i in 1:size(M2, 2))
+	lines2_y = reduce(vcat, [M2[2, i], 0, NaN] for i in 1:size(M2, 2))
+	
+	# for i in 1:size(M2, 2)
+	# 	plot!([(M2[1, i], M2[2, i]), (M2[1, i], 0)], ls=:dash, c=:black, alpha=0.1)
+	# end
+	
+	plot!(lines2_x, lines2_y, ls=:dash, c=:black, alpha=0.1)
 	
 	σ = std(M2[1, :])
 	vline!([-2σ, 2σ], ls=:dash, lw=2)
 	
-	plot!(0.5 * [-cos(θ), cos(θ)], 0.5 * [sin(θ), -sin(θ)], c=:black, alpha=0.5, lw=2)
-	plot!(0.5 * [-sin(θ), sin(θ)], 0.5 * [-cos(θ), cos(θ)], c=:black, alpha=0.5, lw=2)
+# 	plot!(0.5 * [-cos(θ), cos(θ)], 0.5 * [sin(θ), -sin(θ)], c=:black, alpha=0.5, lw=1, arrow=true)
+# 	plot!(0.5 * [-sin(θ), sin(θ)], 0.5 * [-cos(θ), cos(θ)], c=:black, alpha=0.5, lw=1, arrow=true)
+	
+# 	plot!(0.5 * [cos(θ), -cos(θ)], 0.5 * [-sin(θ), sin(θ)], c=:black, alpha=0.5, lw=1, arrow=true)
+# 	plot!(0.5 * [sin(θ), -sin(θ)], 0.5 * [cos(θ), -cos(θ)], c=:black, alpha=0.5, lw=1, arrow=true)
+	
+	title!("σ = $(round(σ, digits=4))")
+	
+	annotate!(2σ+0.05, 0.05, text("2σ", 10, :green))
+	annotate!(-2σ-0.05, 0.05, text("-2σ", 10, :green))
+
 end;
 
 # ╔═╡ 2ffe7ed0-f870-11ea-06aa-390581500ca1
-plot(p1, p2)
+plot(p2)
 
 # ╔═╡ a5cdad52-f906-11ea-0486-755a6403a367
 md"""
@@ -453,15 +525,27 @@ begin
 end
 
 # ╔═╡ 0935c870-f871-11ea-2a0b-b1b824379350
-begin 
-	plot(0:0.01:2π, variance, leg=false, size=(400, 300))
-	
+p3 = begin 
+	plot(0:360, variance.(range(0, 2π, length=361)), leg=false, size=(400, 200))
+	scatter!([degrees], [σ^2])
 	xlabel!("θ")
 	ylabel!("variance in direction θ")
 end
 
+# ╔═╡ 6646abe0-835b-11eb-328a-55ca22f89c7d
+σs = svdvals(M)
+
+# ╔═╡ 31e4b138-84e8-11eb-36a8-8b90746fbb0f
+variances = σs.^2 ./ 199
+
+# ╔═╡ ef850e8e-84e7-11eb-1cb0-870c3000841d
+1 ./ σs
+
+# ╔═╡ 031a2894-84e8-11eb-1381-9b9e86f2fa0a
+M
+
 # ╔═╡ e4af4d26-f877-11ea-1de3-a9f8d389138e
-md"""The direction in which the variance is **maximised** gives the most important direction. This is often called the first **principal component** in statistics, or the first **singular vector** in linear algebra. 
+md"""The direction in which the variance is **maximised** gives the most important direction: It is the direction along which the data "points", or the direction which best distinguishes different data points. This is often called the first **principal component** in statistics, or the first **singular vector** in linear algebra. 
 
 We can also now quantify *how close* the data is to lying along that single line, using the width in the *perpendicular* direction: if that width is "much smaller" than  the width in the first principal direction then the data is close to being rank 1.
 """
@@ -533,50 +617,139 @@ md"In more than 3D we can no longer visualise the data, but the same idea applie
 
 If the widths of the ellipsoid in some directions are very small, we can ignore those directions and hence reduce the dimensionality of the data, by changing coordinates to the principal components."
 
-# ╔═╡ eb961e36-f899-11ea-39a9-eb33c949b79d
+# ╔═╡ 9960e1c2-85a0-11eb-3d68-cd3a07a9c0b5
 md"""
-ϕ1 = $(@bind ϕ1 Slider(0:0.1:180, show_value=true, default=30))
+## What is the Singular-Value Decomposition (SVD)?
 """
 
-# ╔═╡ fdc87844-f899-11ea-1f2f-afe1cd43a68a
+# ╔═╡ dc4cca88-85a0-11eb-2791-d7610a610e36
 md"""
-ϕ2 = $(@bind ϕ2 Slider(0:0.1:90, show_value=true, default=30))
+The **Singular-Value Decomposition (SVD)** is a way of writing any matrix in terms of simpler matrices. Thinking in terms of linear transformations, *any* linear transformation $T$ has the same effect as a sequence of three simple transformations:
+
+T = rotation₂ ∘ stretch ∘ rotation₁
+
+In terms of matrices, for *any* matrix $M$ it is possible to write
+
+$$M = U \, \Sigma \, V^\text{T}$$
+
+where $U$ and $V$ are **orthogonal** matrices, i.e. they satisfy $U U^\text{T} = I$ and $V V^\text{T} = I$, and $\Sigma$ is a diagonal matrix. 
+
+Orthogonal matrices have determinant $\pm 1$, so they leave areas unchanged. They are rotations, possibly combined with reflections.
+
+There are algorithms from numerical linear algebra to calculate this decomposition. In Julia we call the `svd` function, e.g.
 """
 
-# ╔═╡ bbcfa61e-8114-11eb-3ef6-f1de3aea9c62
-plotly()
+# ╔═╡ 453689c2-85a2-11eb-2cbc-7d6476b42f2f
+let
+	M = [2 1
+		 1 1]
+	
+	svd(M)
+end
 
-# ╔═╡ 232454b4-f87a-11ea-1c69-91edfca1e589
-md"# A simple recommendation engine"
-
-# ╔═╡ 2b44df7e-f87a-11ea-1690-dd459eae05a3
-md"Suppose we have data on movie recommendations. It might look something like the following data matrix. The rows correspond to different people and the columns to different movies. Missing values are denoted by the special value `missing` and are shown in black.
-"
-
-# ╔═╡ e5f67376-f917-11ea-1799-4341e3a758d5
-missing
-
-# ╔═╡ e7ae7312-f917-11ea-1276-bf8687cc0e57
-typeof(missing)
-
-# ╔═╡ e87e74a6-f87a-11ea-02d5-1970d010bde9
-md"""If we think of movies as having properties, or **features**, such as being a drama or action movie, or having a certain actor in a lead role, and that each person has certain preferences, it might be reasonable to think that we should be able to approximate the non-missing part of this matrix by a matrix of low rank, say rank 2, modelling the fact that "Alicia likes action movies and Judi Dench", while "Jaime likes romances". 
-
-
-If so, we can then **impute** (fill in) the missing data, and hence give each person a recommendation as to how much they might like the movies that they have not yet seen!"""
-
-# ╔═╡ 63bad6ac-f87b-11ea-23ae-31522dfc74d5
-md"""To do so we need to find the rank-2 matrix that is *closest* to this given data matrix. "Closest" here requires us to define some kind of distance, or **loss function**, between the rank-2 matrix and the data matrix, and then to **optimise** this function to find the closest rank-2 matrix.
-
-In the case of a matrix with *no* missing entries the solution to this optimisation problem is exactly the SVD, which can be found using techniques from linear algebra. 
-However we can also directly apply **optimisation** methods. The simplest method is **gradient descent**.
+# ╔═╡ 91b77acc-85a2-11eb-19bb-bd2bdd0c1a68
+md"""
+Let's look at the action of the matrix on the unit disc. To generate points in the unit disc we generate points in $[-1, 1]^2$ and *reject* those lying outside:
 """
 
-# ╔═╡ 2d8b13de-f901-11ea-3198-bb513ea1859c
-md"The original matrix and the rank-2 approximation are as follows, with missing data shown in black:"
+# ╔═╡ f92c75f6-85a3-11eb-1689-23aeaa3daeb7
+begin
+	unit_disc = [ (-1.0 .+ 2.0 .* rand(2)) for i in 1:2000 ]
+	unit_disc = reduce(hcat, [x for x in unit_disc if x[1]^2 + x[2]^2 < 1])
+end
 
-# ╔═╡ da7592da-f902-11ea-2cee-dbaefacdc382
-md"Here we compare the non-missing values. The rank-2 approximation is not too good. We could then increase the rank of the approximation:"
+# ╔═╡ 03069da6-85a4-11eb-2ac5-87b767846550
+scatter(unit_disc[1, :], unit_disc[2, :], ratio=1, leg=false, alpha=0.5, ms=3)
+
+# ╔═╡ 1647a126-85a4-11eb-3923-5f5a6f703403
+md"""
+t = $(@bind tt Slider(0:0.01:1, show_value=true))
+"""
+
+# ╔═╡ 40b87cbe-85a4-11eb-30f8-cf7b5e79c19a
+pp1 = begin
+	scatter(unit_disc[1, :], unit_disc[2, :], ratio=1, leg=false, alpha=0.5, title="stretch + rotate")
+	result =  [1 + tt  tt; tt  1] * unit_disc
+	scatter!(result[1, :], result[2, :], alpha=0.2)
+
+	ylims!(-3, 3)
+	xlims!(-3, 3)
+end;
+
+# ╔═╡ 28a7d6dc-85a5-11eb-0e4b-b7e9b4c592ed
+pp2 = begin
+	UU, Sigma, VV = svd([1 + tt  tt; tt  1])
+	scatter(unit_disc[1, :], unit_disc[2, :], ratio=1, leg=false, alpha=0.5, title="stretch")
+	
+	result2 = Diagonal(Sigma) * unit_disc
+	
+	scatter!(result2[1, :], result2[2, :], alpha=0.2)
+	
+	ylims!(-3, 3)
+	xlims!(-3, 3)
+
+end;
+
+
+# ╔═╡ 6ec7f980-85a5-11eb-12fc-cb132db28d83
+plot(pp2, pp1)
+
+# ╔═╡ 92a2827e-84e9-11eb-1e85-6f49b1da7277
+md"""
+## Rotations in 300 dimensions
+"""
+
+# ╔═╡ e84adec2-84e8-11eb-2157-dd491588ccf0
+md"""
+We have been thinking of 300 points in 2 dimensions. Instead, we could think about 2 points **in 300 dimensions**. In some sense, this is what 
+"transpose really does"!
+"""
+
+# ╔═╡ 571b88ac-85a6-11eb-2887-a368a19bce4d
+md"""
+The $V$ in the SVD is another rotation that we "cannot see" in the above pictures. In our case it is a rotation in 300 dimensions! But in fact we can visualise it as follows, where we multiply our data by a $300 \times 300$ orthogonal matrix!
+
+We first take a random *anti-symmetric* matrix, i.e. one for which $M = -M^\text{t}$.
+We then turn that into an orthogonal matrix by taking the so-called **matrix exponential**.
+"""
+
+# ╔═╡ 12010a58-84eb-11eb-106f-cb4e3e0c879b
+begin
+	dim = size(M, 2)
+	anti_symmetric = randn(dim, dim)
+	anti_symmetric -= anti_symmetric'
+end
+
+# ╔═╡ 696d2768-84eb-11eb-39e0-612e074a2c27
+@bind t Slider(0:0.0002:1, show_value=true, default=0.0)
+
+# ╔═╡ 7b7b5128-84eb-11eb-3974-9b4c08fab8bb
+begin
+	M_rotated = M * exp(t * anti_symmetric)
+	scatter(M_rotated[1, :], M_rotated[2, :], leg=false, alpha=0.5, )
+	scatter!(M[1, :], M[2, :], alpha=0.5)
+	
+	ylims!(-0.3, 0.3)
+	xlims!(-0.6, 0.6)
+end
+
+# ╔═╡ 805b9616-85a7-11eb-22e8-db8ee67071ae
+md"""
+We see that the data rotates around in 300 dimensions, but always is projected to the *same* ellipse.
+"""
+
+# ╔═╡ 2927cdd8-84fe-11eb-30fb-cb79894f4612
+
+
+# ╔═╡ 90656ce6-84fb-11eb-1aac-4bd7747613db
+U, Σ, V = svd(M, full=true)
+
+# ╔═╡ aec542a2-84fb-11eb-322c-27fc2c45f6ef
+M18 = M * V 
+
+# ╔═╡ b55dcfd2-84fb-11eb-1766-17dc8b7a17d0
+scatter(M18[1, :], M18[2, :], alpha=0.5, leg=false, ratio=1, xlim=(-5,5))
+
 
 # ╔═╡ 1cf3e098-f864-11ea-3f3a-c53017b73490
 md"#### Appendix"
@@ -622,34 +795,6 @@ function split_up(v, m, n)
 	return v[1:m], v[m+1:m+n], v[m+n+1:2m+n], v[2m+n+1:2m+2n]
 end
 
-# ╔═╡ 16887070-f891-11ea-2db3-47b91930e728
-
-
-# ╔═╡ 9822b22e-f89a-11ea-3da9-6199f9de033a
-nn = 400
-
-# ╔═╡ 690364dc-f89a-11ea-30e0-d52fbc146ef7
-M7 = outer([3, 1, 1], rand(nn)) .+ 0.1 .* randn.();
-
-# ╔═╡ 8b6ea690-f899-11ea-2712-51508ae9c53e
-M8 = outer([1, 2, 3], rand(nn)) + outer([-1, 3, -1], rand(nn)) .+ 0.1 .* randn.();
-
-# ╔═╡ 9d5591de-f899-11ea-30d4-b1438066cc92
-begin
-	scatter(M7[1,:], M7[2,:], M7[3,:], camera=(ϕ1, ϕ2), alpha=0.5, label="rank 1: noisy line")
-	scatter!(M8[1,:], M8[2,:], M8[3,:], camera=(ϕ1, ϕ2), alpha=0.5, label="rank 2: noisy plane")
-end
-
-# ╔═╡ c66797fe-f899-11ea-094e-6d65bea15a11
-randmissing(n, p_m, dims...) = rand([1:n; [missing for _ ∈ 1:n/(1/p_m -1)]], dims...)
-
-# ╔═╡ 4fa77c96-f87a-11ea-2153-4bdf390369a5
-begin
-	m, n = 20, 5
-	
-	M3 = randmissing(5, 0.4, m, n)
-end
-
 # ╔═╡ 0bcc8852-f890-11ea-3715-11cbead7f636
 function ff(v, m, n)
 	v1, w1, v2, w2 = split_up(v, m, n)
@@ -660,107 +805,16 @@ end
 # ╔═╡ 7040dc72-f893-11ea-3d22-4fbd452faa41
 ff2(v) = ff(v, m, n)
 
-# ╔═╡ 20e94d56-f890-11ea-3953-cbd70cec8ebd
-total = 2(m + n)
-
 # ╔═╡ 1dbcf15a-f890-11ea-008c-8935edfbdb1c
 ff(rand(total), m, n)
 
-# ╔═╡ 1d7e264c-f891-11ea-131d-134cbfff1ac0
-function optimise(f)
-	x = rand(total)
-	η = 0.01
-
-	for i in 1:10000
-		x -= η * ForwardDiff.gradient(f, x)
-	end
-	
-	return x
-end
-
-# ╔═╡ 7715e100-f893-11ea-3768-f9a59d8cc06c
-begin 
-	xxx = optimise( v -> ff(v, m, n) )
-
-	(v1, w1, v2, w2) = split_up(xxx, m, n) 
-	M4 = outer(v1, w1) + outer(v2, w2)
-end
-
-# ╔═╡ 53819d1e-f902-11ea-3388-ebc082de7053
-begin
-	M4_new = float.(M3)
-	indices = (!ismissing).(M3)
-	M4_new[indices] .= M4[indices]
-end
-
-
-# ╔═╡ 49b83854-f894-11ea-1f07-c95929bf9aea
-M5 = replace(M3, missing=>0)
-
-# ╔═╡ 81115c14-f893-11ea-0147-c9fd45b7b777
-show_image(replace(M3, missing=>0))
-
-# ╔═╡ 9da0cbaa-f893-11ea-2d94-951c1f947a2d
-let 
-	global M6 = copy(M4)
-	M6[ismissing.(M3)] .= 0
-	
-	M6
-end
-
-# ╔═╡ 1857c66c-f894-11ea-0ba2-efe85cd442aa
-[show_image(M5)', show_image(M6)']
-
-# ╔═╡ 54ff9624-f901-11ea-309f-e396acc96f23
-function show_image_missing(M)
-	colors = show_image(replace(M, missing=>0))
-	colors[ismissing.(M)] .= RGB(0, 0, 0)
-	
-	colors
-end
-
-# ╔═╡ 50d80f8c-f900-11ea-27fb-c5a453928534
-show_image_missing(M3)
-
-# ╔═╡ 31ed8eac-f901-11ea-3443-25c0c459803c
-[show_image_missing(M3)', show_image_missing(M4)']
-
-# ╔═╡ a0e357a0-f902-11ea-1895-651d395d025d
-[show_image_missing(M3)', show_image_missing(M4_new)']
-
-# ╔═╡ b0fadede-f901-11ea-2248-ab8049d719f5
-M'
-
-# ╔═╡ 8f599fae-f901-11ea-25e5-11a1f569aef1
-show_image_missing(M3)
-
-# ╔═╡ 8ec6d478-8112-11eb-381e-a7fd49612e9c
-
-
-# ╔═╡ e465ca72-f901-11ea-22f3-318147c8d79a
-colors = show_image(replace(M3, missing=>0))
-
-# ╔═╡ 8dd97d10-8112-11eb-30a7-099a0adf1cb8
-
-
-# ╔═╡ f175b60a-f901-11ea-0fcb-01fc17ec2a97
-colors[ismissing.(M3)]
-
-# ╔═╡ 8d075504-8112-11eb-0221-491441fe00c5
-
-
-# ╔═╡ 4c623ce4-81b7-11eb-138a-ffa00b4069e6
-
-
 # ╔═╡ Cell order:
-# ╟─4c1ebac8-81b7-11eb-19fa-f704b4d84a21
-# ╟─c593a748-81b6-11eb-295a-a9800f9dec6d
-# ╟─4fea55cc-0f0c-4b8a-8734-59c879c12065
+# ╠═4c1ebac8-81b7-11eb-19fa-f704b4d84a21
 # ╠═cf82077a-81c2-11eb-1de2-09ed6c35d810
-# ╟─01aad939-49da-466e-9eeb-1e68766d86fd
-# ╟─817552ca-81b7-11eb-1da7-116b0b35dc42
-# ╟─7365084a-1f37-4897-bca4-fc5855c5ee4e
-# ╟─ed7ff6b2-f863-11ea-1a59-eb242a8674e3
+# ╠═c593a748-81b6-11eb-295a-a9800f9dec6d
+# ╟─deb2af50-8524-11eb-0dd4-9d799ff6d3e2
+# ╟─2e50a070-853f-11eb-2045-b1cc43c29768
+# ╠═ed7ff6b2-f863-11ea-1a59-eb242a8674e3
 # ╟─fed5845e-f863-11ea-2f95-c331d3c62647
 # ╠═0e1a6d80-f864-11ea-074a-5f7890180114
 # ╠═2e497e30-f895-11ea-09f1-d7f2c1f61193
@@ -797,23 +851,26 @@ colors[ismissing.(M3)]
 # ╟─f574ad7c-f866-11ea-0efa-d9d0602aa63b
 # ╟─8775b3fe-f866-11ea-3e6f-9732e39a3525
 # ╠═cb7e85e4-815c-11eb-3923-7b9537801bae
-# ╟─1147cbda-f867-11ea-08fa-ef6ed2ae1e93
+# ╠═1147cbda-f867-11ea-08fa-ef6ed2ae1e93
 # ╟─8a611e36-f867-11ea-121f-317b7c145fe3
 # ╟─f7371934-f867-11ea-3b53-d1566684585c
-# ╟─119dc35c-ec94-11ea-190c-23a750fbe7f4
-# ╠═2043d4e6-ec94-11ea-1e1a-c75742eafe71
 # ╟─987c1f2e-f868-11ea-1125-0d8c02843ae4
 # ╟─9e78b048-f868-11ea-192e-d903265d1eb5
 # ╟─24df1f32-ec90-11ea-1f6d-03c1bfa5df8e
+# ╟─b264f724-81bf-11eb-1052-295b81cde5fb
+# ╟─09991230-8526-11eb-04aa-fb904bd2036c
 # ╠═aec46a9b-f743-4cbd-97a7-3ef3cac78b12
-# ╟─1b8c743e-ec90-11ea-10aa-e3b94f768f82
+# ╠═1b8c743e-ec90-11ea-10aa-e3b94f768f82
+# ╟─eb867f18-852e-11eb-005f-e15b6d0d0d95
+# ╟─f7079016-852e-11eb-3bc9-53fa0846276f
+# ╟─870d3efa-f8fc-11ea-1593-1552511dcf86
+# ╠═4fb82f18-852f-11eb-278d-cf93571f4adc
+# ╟─5fcf832c-852f-11eb-1354-792933a891a5
 # ╟─ef4a2a54-81bf-11eb-358b-0da2072f20c8
 # ╟─f5358ce4-f86a-11ea-2989-b1f37be89183
-# ╟─870d3efa-f8fc-11ea-1593-1552511dcf86
-# ╟─b264f724-81bf-11eb-1052-295b81cde5fb
-# ╟─03ab44c0-f8fd-11ea-2243-1f3580f98a65
 # ╠═2c3721da-f86b-11ea-36cf-3fe4c6622dc6
-# ╠═6dec0db8-ec93-11ea-24ad-e17870ee64c2
+# ╟─03ab44c0-f8fd-11ea-2243-1f3580f98a65
+# ╟─6dec0db8-ec93-11ea-24ad-e17870ee64c2
 # ╟─5fab2c32-f86b-11ea-2f27-ed5feaac1fa5
 # ╟─ae9a2900-ec93-11ea-1ae5-0748221328fc
 # ╟─b81c9db2-ec93-11ea-0dbd-4bd0951cb2cc
@@ -821,18 +878,28 @@ colors[ismissing.(M3)]
 # ╟─b8fa6a1c-f86d-11ea-3d6b-2959d737254b
 # ╟─3547f296-f86f-11ea-1698-53d3c1a0bc30
 # ╟─7a83101e-f871-11ea-1d87-4946162777b5
-# ╟─e8276b4e-f86f-11ea-38be-218a72452b10
+# ╠═e8276b4e-f86f-11ea-38be-218a72452b10
+# ╠═1f373bd0-853f-11eb-0f8e-19cb7f376182
+# ╠═31e4b138-84e8-11eb-36a8-8b90746fbb0f
 # ╟─d71fdaea-f86f-11ea-1a1f-45e4d50926d3
 # ╠═757c6808-f8fe-11ea-39bb-47e4da65113a
+# ╠═1232e848-8540-11eb-089b-2185cc06f23a
 # ╠═3b71142c-f86f-11ea-0d43-47011d00786c
 # ╠═88bbe1bc-f86f-11ea-3b6b-29175ddbea04
+# ╠═7cb04c9a-8358-11eb-1255-8d8c90916c37
 # ╟─cd9e05ee-f86f-11ea-0422-25f8329c7ef2
 # ╟─7eb51908-f906-11ea-19d2-e947d81cb743
-# ╠═4f1980ea-f86f-11ea-3df2-35cca6c961f3
+# ╠═8b8e6b2e-8531-11eb-1ea6-637db25b28d5
+# ╟─4f1980ea-f86f-11ea-3df2-35cca6c961f3
+# ╟─c9da6e64-8540-11eb-3984-47fdf8be0dac
+# ╠═f70065aa-835a-11eb-00cb-ffa27bcb486e
 # ╠═2ffe7ed0-f870-11ea-06aa-390581500ca1
 # ╟─a5cdad52-f906-11ea-0486-755a6403a367
 # ╟─0115c974-f871-11ea-1204-054510848849
-# ╟─0935c870-f871-11ea-2a0b-b1b824379350
+# ╠═0935c870-f871-11ea-2a0b-b1b824379350
+# ╠═6646abe0-835b-11eb-328a-55ca22f89c7d
+# ╠═ef850e8e-84e7-11eb-1cb0-870c3000841d
+# ╠═031a2894-84e8-11eb-1381-9b9e86f2fa0a
 # ╟─e4af4d26-f877-11ea-1de3-a9f8d389138e
 # ╟─bf57f674-f906-11ea-08eb-9b50818a025b
 # ╠═17e015fe-f8ff-11ea-17b4-a3aa072cd7b3
@@ -843,25 +910,27 @@ colors[ismissing.(M3)]
 # ╟─aaff88e8-f877-11ea-1527-ff4d3db663db
 # ╟─aefa84de-f877-11ea-3e26-678008e9739e
 # ╟─0bd9358e-f879-11ea-2c83-ed4e7bf9d903
-# ╠═690364dc-f89a-11ea-30e0-d52fbc146ef7
-# ╠═8b6ea690-f899-11ea-2712-51508ae9c53e
-# ╟─eb961e36-f899-11ea-39a9-eb33c949b79d
-# ╟─fdc87844-f899-11ea-1f2f-afe1cd43a68a
-# ╠═bbcfa61e-8114-11eb-3ef6-f1de3aea9c62
-# ╟─9d5591de-f899-11ea-30d4-b1438066cc92
-# ╟─232454b4-f87a-11ea-1c69-91edfca1e589
-# ╟─2b44df7e-f87a-11ea-1690-dd459eae05a3
-# ╠═e5f67376-f917-11ea-1799-4341e3a758d5
-# ╠═e7ae7312-f917-11ea-1276-bf8687cc0e57
-# ╠═4fa77c96-f87a-11ea-2153-4bdf390369a5
-# ╠═50d80f8c-f900-11ea-27fb-c5a453928534
-# ╟─e87e74a6-f87a-11ea-02d5-1970d010bde9
-# ╟─63bad6ac-f87b-11ea-23ae-31522dfc74d5
-# ╟─2d8b13de-f901-11ea-3198-bb513ea1859c
-# ╠═31ed8eac-f901-11ea-3443-25c0c459803c
-# ╟─53819d1e-f902-11ea-3388-ebc082de7053
-# ╟─da7592da-f902-11ea-2cee-dbaefacdc382
-# ╠═a0e357a0-f902-11ea-1895-651d395d025d
+# ╟─9960e1c2-85a0-11eb-3d68-cd3a07a9c0b5
+# ╟─dc4cca88-85a0-11eb-2791-d7610a610e36
+# ╠═453689c2-85a2-11eb-2cbc-7d6476b42f2f
+# ╟─91b77acc-85a2-11eb-19bb-bd2bdd0c1a68
+# ╠═f92c75f6-85a3-11eb-1689-23aeaa3daeb7
+# ╠═03069da6-85a4-11eb-2ac5-87b767846550
+# ╠═40b87cbe-85a4-11eb-30f8-cf7b5e79c19a
+# ╠═28a7d6dc-85a5-11eb-0e4b-b7e9b4c592ed
+# ╟─1647a126-85a4-11eb-3923-5f5a6f703403
+# ╠═6ec7f980-85a5-11eb-12fc-cb132db28d83
+# ╟─92a2827e-84e9-11eb-1e85-6f49b1da7277
+# ╟─e84adec2-84e8-11eb-2157-dd491588ccf0
+# ╟─571b88ac-85a6-11eb-2887-a368a19bce4d
+# ╠═12010a58-84eb-11eb-106f-cb4e3e0c879b
+# ╠═696d2768-84eb-11eb-39e0-612e074a2c27
+# ╠═7b7b5128-84eb-11eb-3974-9b4c08fab8bb
+# ╟─805b9616-85a7-11eb-22e8-db8ee67071ae
+# ╠═2927cdd8-84fe-11eb-30fb-cb79894f4612
+# ╠═90656ce6-84fb-11eb-1aac-4bd7747613db
+# ╠═aec542a2-84fb-11eb-322c-27fc2c45f6ef
+# ╠═b55dcfd2-84fb-11eb-1766-17dc8b7a17d0
 # ╟─1cf3e098-f864-11ea-3f3a-c53017b73490
 # ╠═2917943c-f864-11ea-3ee6-db952ca7cd67
 # ╠═72bb11b0-f88f-11ea-0e55-b1108300f854
@@ -869,22 +938,3 @@ colors[ismissing.(M3)]
 # ╠═0bcc8852-f890-11ea-3715-11cbead7f636
 # ╠═7040dc72-f893-11ea-3d22-4fbd452faa41
 # ╠═1dbcf15a-f890-11ea-008c-8935edfbdb1c
-# ╠═20e94d56-f890-11ea-3953-cbd70cec8ebd
-# ╠═16887070-f891-11ea-2db3-47b91930e728
-# ╠═1d7e264c-f891-11ea-131d-134cbfff1ac0
-# ╠═7715e100-f893-11ea-3768-f9a59d8cc06c
-# ╠═49b83854-f894-11ea-1f07-c95929bf9aea
-# ╠═81115c14-f893-11ea-0147-c9fd45b7b777
-# ╠═9da0cbaa-f893-11ea-2d94-951c1f947a2d
-# ╠═1857c66c-f894-11ea-0ba2-efe85cd442aa
-# ╠═9822b22e-f89a-11ea-3da9-6199f9de033a
-# ╠═c66797fe-f899-11ea-094e-6d65bea15a11
-# ╠═54ff9624-f901-11ea-309f-e396acc96f23
-# ╠═b0fadede-f901-11ea-2248-ab8049d719f5
-# ╠═8f599fae-f901-11ea-25e5-11a1f569aef1
-# ╠═8ec6d478-8112-11eb-381e-a7fd49612e9c
-# ╠═e465ca72-f901-11ea-22f3-318147c8d79a
-# ╠═8dd97d10-8112-11eb-30a7-099a0adf1cb8
-# ╠═f175b60a-f901-11ea-0fcb-01fc17ec2a97
-# ╠═8d075504-8112-11eb-0221-491441fe00c5
-# ╠═4c623ce4-81b7-11eb-138a-ffa00b4069e6

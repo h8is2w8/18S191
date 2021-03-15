@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.12.20
+# v0.12.21
 
 using Markdown
 using InteractiveUtils
@@ -18,15 +18,21 @@ begin
 	import Pkg
     Pkg.activate(mktempdir())
     Pkg.add([
-        Pkg.PackageSpec(name="Colors", version="0.12"),
+		Pkg.PackageSpec(name="ImageIO", version="0.5"),
+		Pkg.PackageSpec(name="ImageShow", version="0.2"),
+		Pkg.PackageSpec(name="FileIO", version="1.6"),
+		Pkg.PackageSpec(name="PNGFiles", version="0.3.6"),
+		Pkg.PackageSpec(name="Colors", version="0.12"),
+		Pkg.PackageSpec(name="ColorVectorSpace", version="0.8"),
         Pkg.PackageSpec(name="ColorSchemes", version="3"),
-        Pkg.PackageSpec(name="Images", version="0.23"),
-        Pkg.PackageSpec(name="ImageMagick", version="1"),
-        Pkg.PackageSpec(name="Suppressor", version="0.2"),
+			
         Pkg.PackageSpec(name="PlutoUI", version="0.7"),
     ])
-	using Colors, ColorSchemes, Images, ImageMagick
-	using Suppressor, InteractiveUtils, PlutoUI
+	using Colors, ColorVectorSpace, ImageShow, FileIO
+	using ImageShow.ImageCore
+	using ColorSchemes
+	
+	using InteractiveUtils, PlutoUI
 	using LinearAlgebra, SparseArrays, Statistics
 end
 
@@ -79,16 +85,6 @@ PlutoUI.TableOfContents(aside = true)
 # ╔═╡ b0ba5b8c-f5d1-11ea-1304-3f0e47f935fe
 md"# Examples of structure"
 
-# ╔═╡ 69be8194-81b7-11eb-0452-0bc8b9f22286
-md"""
-Syntax to be learned:
-
-* A `struct` is a great way to embody structure.
-* `dump` and `Dump`: to see what's inside a data structure.
-* `Diagonal`, `sparse`
-* `error` (throws an exception)
-"""
-
 # ╔═╡ 261c4df2-f5d2-11ea-2c72-7d4b09c46098
 md"""
 # One-hot vectors
@@ -118,7 +114,7 @@ md"""
 
 # ╔═╡ 4794e860-81b7-11eb-2c91-8561c20f308a
 md"""
-## Julia: structs (creating a new type in Julia)
+## Julia: `structs` (creating a new type in Julia)
 """
 
 # ╔═╡ 67827da8-81cc-11eb-300e-278104d2d958
@@ -175,7 +171,17 @@ md"""
 
 # ╔═╡ dc5a96ba-81cc-11eb-3189-25920df48afa
 md"""
-`dump` shows everything that is inside a given object:
+`dump` shows the internal data stored inside a given object:
+"""
+
+# ╔═╡ af0d3c22-f756-11ea-37d6-11b630d2314a
+with_terminal() do
+	dump(myonehotvector)
+end
+
+# ╔═╡ 06e3a842-26b8-4417-9cf5-8a083ccdb264
+md"""
+Since `dump` writes to a terminal, you can't use it directly inside Pluto, which is why we wrap it inside a `with_terminal` block. You can also use the function `Dump` from `PlutoUI`:
 """
 
 # ╔═╡ 91172a3e-81b7-11eb-0953-9f5e0207f863
@@ -232,6 +238,12 @@ Diagonal([5, 6, -10])
 # ╔═╡ 4c533ac6-f695-11ea-3724-b955eaaeee49
 md"How much information is stored for each representation? We can use Julia's `dump` function to find out:"
 
+# ╔═╡ 466901ea-f5d5-11ea-1db5-abf82c96eabf
+Dump(denseD)
+
+# ╔═╡ b38c4aae-f5d5-11ea-39b6-7b0c7d529019
+Dump(D)
+
 # ╔═╡ 93e04ed8-81cd-11eb-214a-a761ef8c406f
 md"""
 We see that `Diagonal` stores only the diagonal entries, not the zeros!
@@ -274,6 +286,9 @@ which is generally considered favorable for arithmetic, matrix-vector
   * length(colptr) == number of columns + 1
 """
 
+# ╔═╡ 3d4a702e-f75a-11ea-031c-333d591fc442
+Dump(sparse(M))
+
 # ╔═╡ 80ff4010-81bb-11eb-374e-215a57defb0b
 md"""
  An example where CSC may not be a great choice is the following. The reason is that  `colptr` must have an entry in each column:
@@ -282,11 +297,19 @@ md"""
 # ╔═╡ 5de72b7c-f5d6-11ea-1b6f-35b830b5fb34
 M2 = sparse([1, 2, 10^6], [4, 9, 10^6], [7, 8, 9])
 
+# ╔═╡ 8b60629e-f5d6-11ea-27c8-d934460d3a57
+with_terminal() do
+	dump(M2)
+end
+
 # ╔═╡ 2fd7e52e-f5d7-11ea-3b5a-1f338e2451e0
 M3 = [1 0 2 0 10; 0 3 4 0 9; 0 0 0 5 8; 0 0 0 0 7] 
 
 # ╔═╡ 2e87d4fe-81bc-11eb-0d16-b988bcedcc73
 M4 = M3 .* 0
+
+# ╔═╡ cde79f38-f5d6-11ea-3297-0b5b240f7b9e
+Dump(sparse(M4))
 
 # ╔═╡ aa09c008-f5d8-11ea-1bdc-b51ee6eb2478
 sparse(M4)
@@ -490,16 +513,10 @@ md"""
 """
 
 # ╔═╡ b6478e1a-f5f6-11ea-3b92-6d4f067285f4
-url = "https://arbordayblog.org/wp-content/uploads/2018/06/oak-tree-sunset-iStock-477164218.jpg"
-
-# ╔═╡ d4a049a2-f5f8-11ea-2f34-4bc0e3a5954a
-download(url, "tree.jpg")
+tree_url = "https://user-images.githubusercontent.com/6933510/110924885-d7f1b200-8322-11eb-9df7-7abf29c8db7d.png"
 
 # ╔═╡ f2c11f88-f5f8-11ea-3e02-c1d4fa22031e
-begin
-	image = load("tree.jpg")
-	image = image[1:5:end, 1:5:end]
-end
+image = load(download(tree_url))
 
 # ╔═╡ 29062f7a-f5f9-11ea-2682-1374e7694e32
 picture = Float64.(channelview(image));
@@ -529,7 +546,24 @@ RGB.(sum(outer(Ur[:,i], Vr[:,i]) .* Σr[i] for i in 1:n),
 	 sum(outer(Ub[:,i], Vb[:,i]) .* Σb[i] for i in 1:n))
 
 # ╔═╡ 8df84fcc-f5d5-11ea-312f-bf2a3b3ce2ce
-md"## Appendix"
+md"# Appendix"
+
+# ╔═╡ 0edd7cca-834f-11eb-0232-ff0850027f76
+md"## Syntax Learned"
+
+# ╔═╡ 69be8194-81b7-11eb-0452-0bc8b9f22286
+md"""
+Syntax to be learned:
+
+* A `struct` is a great way to embody structure.
+* `dump` and `Dump`: to see what's inside a data structure.
+* `Diagonal`, `sparse`
+* `error` (throws an exception)
+* `svd` (Singular Value Decomposition)
+"""
+
+# ╔═╡ 1c462f68-834f-11eb-1447-85848814769b
+[ dump, Diagonal, error, svd]
 
 # ╔═╡ 5813e1b2-f5ff-11ea-2849-a1def74fc065
 begin
@@ -543,73 +577,11 @@ show_image(x)
 # ╔═╡ 2f75df7e-f601-11ea-2fc2-aff4f335af33
 show_image( outer( rand(10), rand(10) ))
 
-# ╔═╡ 91980bcc-f5d5-11ea-211f-e9a08ff0fb19
-function with_terminal(f)
-	local spam_out, spam_err
-	@color_output false begin
-		spam_out = @capture_out begin
-			spam_err = @capture_err begin
-				f()
-			end
-		end
-	end
-	spam_out, spam_err
-	
-	HTML("""
-		<style>
-		div.vintage_terminal {
-			
-		}
-		div.vintage_terminal pre {
-			color: #ddd;
-			background-color: #333;
-			border: 5px solid pink;
-			font-size: .75rem;
-		}
-		
-		</style>
-	<div class="vintage_terminal">
-		<pre>$(Markdown.htmlesc(spam_out))</pre>
-	</div>
-	""")
-end
-
-# ╔═╡ af0d3c22-f756-11ea-37d6-11b630d2314a
-with_terminal() do
-	dump(myonehotvector)
-end
-
-# ╔═╡ 466901ea-f5d5-11ea-1db5-abf82c96eabf
-with_terminal() do
-	dump(denseD)
-end
-
-# ╔═╡ b38c4aae-f5d5-11ea-39b6-7b0c7d529019
-with_terminal() do
-	dump(D)
-end
-
-# ╔═╡ 3d4a702e-f75a-11ea-031c-333d591fc442
-with_terminal() do
-	dump(sparse(M))
-end
-
-# ╔═╡ 8b60629e-f5d6-11ea-27c8-d934460d3a57
-with_terminal() do
-	dump(M2)
-end
-
-# ╔═╡ cde79f38-f5d6-11ea-3297-0b5b240f7b9e
-with_terminal() do
-	dump(sparse(M4))
-end
-
 # ╔═╡ Cell order:
 # ╟─0db6ee04-81b7-11eb-330c-11b578b72c90
 # ╟─ca1a1072-81b6-11eb-1fee-e7df687cc314
 # ╟─b0ba5b8c-f5d1-11ea-1304-3f0e47f935fe
-# ╟─69be8194-81b7-11eb-0452-0bc8b9f22286
-# ╟─864e1180-f693-11ea-080e-a7d5aabc9ca5
+# ╠═864e1180-f693-11ea-080e-a7d5aabc9ca5
 # ╟─261c4df2-f5d2-11ea-2c72-7d4b09c46098
 # ╟─3cada3a0-81cc-11eb-04c8-bde26d36a84e
 # ╠═fe2028ba-f6dc-11ea-0228-938a81a91ace
@@ -631,6 +603,7 @@ end
 # ╟─e2e354a8-81b7-11eb-311a-35151063c2a7
 # ╟─dc5a96ba-81cc-11eb-3189-25920df48afa
 # ╠═af0d3c22-f756-11ea-37d6-11b630d2314a
+# ╟─06e3a842-26b8-4417-9cf5-8a083ccdb264
 # ╠═91172a3e-81b7-11eb-0953-9f5e0207f863
 # ╠═4bbf3f58-f788-11ea-0d24-6b0fb070829e
 # ╟─fe70d104-81b7-11eb-14d0-eb5237d8ea6c
@@ -716,7 +689,6 @@ end
 # ╠═0373fbf6-f75d-11ea-2a9e-cbb714d69cf4
 # ╟─ebd72fb8-f5e0-11ea-0630-573337dff753
 # ╠═b6478e1a-f5f6-11ea-3b92-6d4f067285f4
-# ╠═d4a049a2-f5f8-11ea-2f34-4bc0e3a5954a
 # ╠═f2c11f88-f5f8-11ea-3e02-c1d4fa22031e
 # ╠═29062f7a-f5f9-11ea-2682-1374e7694e32
 # ╠═5471fd30-f6e2-11ea-2cd7-7bd48c42db99
@@ -725,6 +697,8 @@ end
 # ╠═0c0ee362-f5f9-11ea-0f75-2d2810c88d65
 # ╠═b95ce51a-f632-11ea-3a64-f7c218b9b3c9
 # ╠═7ba6e6a6-f5fa-11ea-2bcd-616d5a3c898b
-# ╟─8df84fcc-f5d5-11ea-312f-bf2a3b3ce2ce
+# ╠═8df84fcc-f5d5-11ea-312f-bf2a3b3ce2ce
+# ╟─0edd7cca-834f-11eb-0232-ff0850027f76
+# ╟─69be8194-81b7-11eb-0452-0bc8b9f22286
+# ╠═1c462f68-834f-11eb-1447-85848814769b
 # ╟─5813e1b2-f5ff-11ea-2849-a1def74fc065
-# ╟─91980bcc-f5d5-11ea-211f-e9a08ff0fb19
